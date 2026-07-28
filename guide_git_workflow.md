@@ -241,7 +241,45 @@ EOF
 ```bash
 cat /home/classic_ops/classic-model/CA-MonJ/README_VERSIONS.md
 ```
+4.**Commit vers git hub**
+##Check
+```bash
+git status --short
+-sh init_files/v1_original
+-sh init_files/v2_kyoungho
+-sh validation_results/v1_original
+sh validation_results/v2_kyoungho
+```
+##Ajouter les fichiers
+```bash
 
+git add init_files/v1_original
+git add init_files/v2_kyoungho
+git add job_options/v1_original
+git add job_options/v2_kyoungho
+git add siteinfo/v1_original
+git add siteinfo/v2_kyoungho
+git add model_params/v1_original
+git add model_params/v2_kyoungho
+git add validation_results/v1_original
+git add validation_results/v2_kyoungho
+```
+##Vérifier ce qui va être commité :
+```bash
+git status
+```
+##Faire le commit
+```bash
+git commit -m "Add V1 original and V2 Kyoungho configurations for CA-MonJ"
+
+git log -1 --oneline
+```
+##Envoyer vers GitHub dans main
+```bash
+git branch --show-current
+
+git push origin main
+```
 ### Cas B - Nouveau repo GitHub complet
 
 1. **Créer le repo sur GitHub** (via le site web) : bouton "New repository", choisir un nom, ne PAS cocher "Initialize with README" si je veux importer du contenu existant (sinon ça peut créer des conflits).
