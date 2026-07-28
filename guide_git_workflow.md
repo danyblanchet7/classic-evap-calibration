@@ -110,6 +110,138 @@ git commit -m "Add CA-XYZ site files"
 git push
 ```
 
+### ORGANISER LE REPO POUR PLUSIEURS VERSIONS (Ma paramétrisation et celle de Kyoungho)
+
+1. **Créer une structure pour tracker les versions**
+```bash
+cd /home/classic_ops/classic-model/CA-MonJ
+mkdir -p init_files/v1_original
+mkdir -p init_files/v2_kyoungho
+mkdir -p job_options/v1_original
+mkdir -p job_options/v2_kyoungho
+mkdir -p siteinfo/v1_original
+mkdir -p siteinfo/v2_kyoungho
+mkdir -p model_params/v1_original
+mkdir -p model_params/v2_kyoungho
+mkdir -p validation_results/v1_original
+mkdir -p validation_results/v2_kyoungho
+
+Regarder la structure : tree /home/classic_ops/classic-model/CA-MonJ
+
+echo "✓ Structure des versions créée"
+```
+2. **SAUVEGARDER V1 (fichiers originaux)**
+   
+# Copier les fichiers ORIGINAUX dans v1_original
+```bash
+cp /home/classic_ops/quick_start_test_runs/all_sites_container_test_1/CA-MonJ/CA-MonJ_init.nc \
+   /home/classic_ops/classic-model/CA-MonJ/init_files/v1_original/
+
+cp /home/classic_ops/quick_start_test_runs/all_sites_container_test_1/CA-MonJ/job_configs/job_options_daily.txt \
+   /home/classic_ops/classic-model/CA-MonJ/job_options/v1_original/
+
+cp /home/classic_ops/CLASSIC/inputFiles/FLUXNETsites_12PFT/CA-MonJ/siteinfo.yaml \
+   /home/classic_ops/classic-model/CA-MonJ/siteinfo/v1_original/
+```
+# Copier aussi les résultats de validation v1
+```bash
+cp /home/classic_ops/validation_results/* \
+   /home/classic_ops/classic-model/CA-MonJ/validation_results/v1_original/ 2>/dev/null
+
+echo "✓ V1 sauvegardée"
+```
+
+3. **INTÉGRER LES FICHIERS DE KYOUNGHO (V2)**
+# Copier les fichiers de Kyoungho dans v2_kyoungho
+```bash
+ cp "/mnt/c/Users/danyblanchet7/Desktop/DATA KYOUNGHO/Forcings/Montmorency Forest/Juvenile_init.cdl" \
+"/home/classic_ops/classic-model/CA-MonJ/init_files/v2_kyoungho/"
+
+cp "/mnt/c/Users/danyblanchet7/Desktop/DATA KYOUNGHO/Forcings/Montmorency Forest/job_options_file_Transient.txt" \
+"/home/classic_ops/classic-model/CA-MonJ/job_options/v2_kyoungho/job_options_transient.txt"
+
+ cp "/mnt/c/Users/danyblanchet7/Desktop/DATA KYOUNGHO/Forcings/Montmorency Forest/job_options_file_Spinup.txt" \
+"/home/classic_ops/classic-model/CA-MonJ/job_options/v2_kyoungho/job_options_spinup.txt"
+
+cp "/mnt/c/Users/danyblanchet7/Desktop/DATA KYOUNGHO/Forcings/Montmorency Forest/model_params.nml" \
+"/home/classic_ops/classic-model/CA-MonJ/model_params/v2_kyoungho/"
+
+cp "/mnt/c/Users/danyblanchet7/Desktop/DATA KYOUNGHO/Forcings/Montmorency Forest/siteinfo.yaml" \
+"/home/classic_ops/classic-model/CA-MonJ/siteinfo/v2_kyoungho/"
+
+echo "✓ V2 Kyoungho intégrée"
+```
+
+4. **CRÉER UN README DOCUMENTANT LES VERSIONS**
+```bash
+cat > /home/classic_ops/classic-model/CA-MonJ/README_VERSIONS.md << 'EOF'
+# CA-MonJ Model Calibration Versions
+
+## V1 - Original Setup (Dany)
+- **Status**: Initial run, validation moderate
+- **init_file**: CA-MonJ_init.nc (stemmass = 0.106 kgC/m²)
+- **Results**:
+  - LE: R² = 0.261, Bias = -19.10 W/m²
+  - H:  R² = -0.065, Bias = +30.63 W/m²
+  - ET: R² = 0.550
+
+## V2 - Kyoungho Calibration
+- **Status**: Testing Kyoungho's calibrated parameters
+- **Source**: Files from Kyoungho (expert calibration)
+- **Key files**:
+  - Juvénile_init.cdl (init file template)
+  - job_options_file_transient.txt
+  - job_options_file_Spinup.txt
+  - model_params.nml (calibrated parameters)
+- **Expected improvements**: Better LE/H partition, GPP validation
+
+## File Organization
+CA-MonJ/
+├── init_files/
+│ ├── v1_original/ ← Original init.nc
+│ └── v2_kyoungho/ ← Kyoungho's init (CDL)
+├── job_options/
+│ ├── v1_original/ ← Original job_options
+│ └── v2_kyoungho/ ← Kyoungho's job_options
+├── model_params/
+│ ├── v1_original/ ← Original params
+│ └── v2_kyoungho/ ← Kyoungho's calibrated params
+├── siteinfo/
+│ ├── v1_original/
+│ └── v2_kyoungho/
+└── validation_results/
+├── v1_original/ ← V1 validation outputs
+└── v2_kyoungho/ ← V2 validation outputs
+## How to Switch Versions
+
+### To run V1:
+```bash
+cd /home/classic_ops/kyoungho_calibration  # or your run directory
+cp -r /home/classic_ops/classic-model/CA-MonJ/init_files/v1_original/* .
+cp -r /home/classic_ops/classic-model/CA-MonJ/job_options/v1_original/* .
+```
+```
+### To run V2 (Kyoungho):
+```bash
+cd /home/classic_ops/kyoungho_calibration
+cp /home/classic_ops/classic-model/CA-MonJ/init_files/v2_kyoungho/Juvénile_init.cdl .
+ncgen -o Juvénile_init.nc Juvénile_init.cdl
+cp /home/classic_ops/classic-model/CA-MonJ/job_options/v2_kyoungho/job_options_*.txt .
+cp /home/classic_ops/classic-model/CA-MonJ/model_params/v2_kyoungho/model_params.nml .
+```
+```
+## Comparison Matrix
+
+| Version | LE R² | H R² | ET R² | Status |
+|---------|-------|------|-------|--------|
+| V1      | 0.261 | -0.065 | 0.550 | Initial |
+| V2      | TBD   | TBD  | TBD   |  Testing |
+
+EOF
+```bash
+cat /home/classic_ops/classic-model/CA-MonJ/README_VERSIONS.md
+```
+
 ### Cas B - Nouveau repo GitHub complet
 
 1. **Créer le repo sur GitHub** (via le site web) : bouton "New repository", choisir un nom, ne PAS cocher "Initialize with README" si je veux importer du contenu existant (sinon ça peut créer des conflits).
@@ -144,6 +276,8 @@ git push -u origin main
 ```
 
 Le `-u origin main` la première fois est important : ça lie ta branche locale à la branche distante, pour que les futurs `git push` (sans arguments) fonctionnent tout seuls.
+
+
 
 ### Cas C - Nouveau projet Python/R (exp my-python-project)
 
