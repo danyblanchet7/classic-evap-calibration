@@ -1,5 +1,3 @@
-
-
  #----charge pakage---------
  
 import pandas as pd   
@@ -14,7 +12,7 @@ import numpy as np
 # CONFIG
 #----------------------------------------define path ---------
 
-OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/FM/"
+OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/my-python-project/data/"
 CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\classic_ops\kyoungho_calibration\CA-MonJ\outputFiles\Juvenile_Transient\\"
 OUTPUT_PATH = "/home/classic_ops/validation_kyoungho_results/"
 
@@ -27,14 +25,14 @@ dataE2 = pd.read_csv(OBS_PATH_FM + "EVAP 2.csv") #,index_col=0 )
 
 #Simulation FM
 
-dataSK = nc.Dataset(CLASSIC_PATH_FM_K + "hfls_halfhourly.nc")
+dataSK = nc.Dataset(CLASSIC_PATH_FM_K + "hfss_halfhourly.nc")
 
 #----------------------------------------define periode ---------------
 
-VARIABLE_OBS = "LE_J"
-VARIABLE_SIM = "hfls"
-YEAR = 2021
-MONTH = 8
+VARIABLE_OBS = "H_J"
+VARIABLE_SIM = "hfss"
+YEAR = 2018
+MONTH = 7
 DAY = 12
 
 #----------------------------------------lire data obs ----------------
@@ -55,8 +53,8 @@ obs["Date"] = pd.to_datetime(
 
 obs = obs.sort_values("Date")  #trier par date 
 obs_juillet = obs[
-    (obs["Date"].dt.year == YEAR) #&
-    #(obs["Date"].dt.month == MONTH) #&
+    (obs["Date"].dt.year == YEAR) &
+    (obs["Date"].dt.month == MONTH) #&
     #(obs["Date"].dt.day == DAY)
 ]
 
@@ -104,8 +102,8 @@ classic = classic.sort_values("Date")
 
 # Filtre
 sim_juillet = classic[
-    (classic["Date"].dt.year == YEAR) #&
- #   (classic["Date"].dt.month == MONTH) #&
+    (classic["Date"].dt.year == YEAR) &
+    (classic["Date"].dt.month == MONTH) #&
   #  (classic["Date"].dt.day == DAY)
 ]
 
@@ -166,56 +164,25 @@ plt.legend()
 plt.show()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ============================================================
-# INDICES DE PERFORMANCE CLASSIC VS OBS
-# ============================================================
-
-# ------------------------------------------------------------
-# ALIGNEMENT DES DONNEES
-# ------------------------------------------------------------
-
-# garder uniquement Date + variable
-obs_perf = obs_juillet[["Date", VARIABLE_OBS]].copy()
-obs_perf = obs_perf.rename(columns={VARIABLE_OBS: "OBS"})
-
-sim_perf = sim_juillet[["Date", "H"]].copy()
-sim_perf = sim_perf.rename(columns={"H": "CLASSIC"})
-
+# Métrique de performance 
 
 # Fusion sur les dates communes
 perf = pd.merge(
-    obs_perf,
-    sim_perf,
+    obs_juillet[["Date", VARIABLE_OBS]],
+    sim_juillet[["Date", "H"]],
     on="Date",
     how="inner"
 )
 
-# enlever les NaN
 perf = perf.dropna()
 
 
-print("\nNombre de points utilisés :", len(perf))
 
-
-# ------------------------------------------------------------
 # CALCUL DES METRIQUES
 # ------------------------------------------------------------
-
-obs_values = perf["OBS"].values
-sim_values = perf["CLASSIC"].values
+####
+obs_values = perf[VARIABLE_OBS].values
+sim_values = perf["H"].values
 
 
 # RMSE
@@ -254,14 +221,12 @@ nse = 1 - (
     np.sum((obs_values - np.mean(obs_values))**2)
 )
 
-
-# ------------------------------------------------------------
 # AFFICHAGE
 # ------------------------------------------------------------
 
-print("\n==============================")
-print(" PERFORMANCE CLASSIC VS OBS ")
-print("==============================")
+print("\n------------------")
+print(" PERFORMANCE CLASSIC VS OBS ") 
+print("--------------------")
 
 print(f"RMSE  : {rmse:.2f} W m-2")
 print(f"MAE   : {mae:.2f} W m-2")
