@@ -31,11 +31,11 @@ VARIABLES = [
 
     # SW
     ("Rsd_J", "rsds"),
-    ("Rsu_J", "rsus"),   # <-- maintenant correct
+    ("Rsu_J", "rsus"),   # <-- calculer dans le module rsus-rlus.py
 
     # LW
     ("Rld_J", "rlds"),
-    ("Rlu_J", "rlus"),   # <-- maintenant correct
+    ("Rlu_J", "rlus"),   # <-- calculer dans le module rsus-rlus.py
 ]
 
 

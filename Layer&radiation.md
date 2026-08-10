@@ -1,4 +1,4 @@
-#  2026-08-07 to 2026-08-07 - Model troubleshooting and repair ( claude IA assisted)
+#  2026-08-07 to 2026-08-07 -  layer ( claude IA assisted)
 
 
 > *"**Contexte** : Problème dans mon run de CLASSIC. Le modéle tourne bien en configuration job options file daily mais en semi-hourly, il shutdown aprés l'année 2021. Il ne parvient pas à simuler 2022,2023,2024 seulement 2016-2021."* 
@@ -151,7 +151,14 @@ Dans VARIABLES :
 ("Rsu_J", "rsus"),
 ("Rlu_J", "rlus"),
 ```
-
+| Variable | Nom CLASSIC | Signification | Type | Ce que tu fais |
+| --- | --- | --- | --- | --- |
+| **rsds** | SW↓ | solaire entrant | fourni | utilisé tel quel |
+| **rss** | SW_net | solaire absorbé | fourni | utilisé tel quel |
+| **rlds** | LW↓ | infrarouge entrant | fourni | utilisé tel quel |
+| **rls** | LW_net | infrarouge net | fourni | utilisé tel quel |
+| **rsus** | SW↑ | solaire réfléchi | **reconstruit** | rsds − rss |
+| **rlus** | LW↑ | infrarouge émis | **reconstruit** | rlds − rls |
 ---
 Résultats = métriques réalistes
     SW↑ (rsus) -> RMSE ≈ 8–29 W/m² et corrélation ≈ 0.96-0.99
