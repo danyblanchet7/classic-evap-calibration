@@ -151,7 +151,7 @@ Dans VARIABLES :
 ("Rsu_J", "rsus"),
 ("Rlu_J", "rlus"),
 ```
-| Variable | Nom CLASSIC | Signification | Type | Ce que tu fais |
+| Variable | Nom CLASSIC | Signification | Type | Utilisation |
 | --- | --- | --- | --- | --- |
 | **rsds** | SW↓ | solaire entrant | fourni | utilisé tel quel |
 | **rss** | SW_net | solaire absorbé | fourni | utilisé tel quel |
