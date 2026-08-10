@@ -1,0 +1,9 @@
+[33mcommit 60b271eb11b5fec8a52369d421aa20b88da9b53d[m
+Author: Dany Blanchet <dany.blanchet.2@ulaval.ca>
+Date:   Sat Aug 8 15:00:43 2026 -0400
+
+    improved
+
+ Calibration.py        | 60 [32m+++++[m[31m-------------------------------------------------------[m
+ evaluation/metrics.py | 44 [32m++++++++++++++++++++++++++++++++++++++++++++[m
+ 2 files changed, 49 insertions(+), 55 deletions(-)

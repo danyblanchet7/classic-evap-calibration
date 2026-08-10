@@ -1,9 +1,9 @@
  #----charge pakage---------
+
 print("...charging pakage")
 import pandas as pd   
 import netCDF4 as nc
 import numpy as np
-
 
  #----charge fonction---------
 print("...charging fonction")
@@ -19,21 +19,28 @@ print("4) fonction define periods ok ! ")
 # CONFIG
 
 
-OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/my-python-project/data/"
+OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/data/"
 CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\classic_ops\kyoungho_calibration\CA-MonJ\outputFiles\Juvenile_Transient\\"
 OUTPUT_PATH = "/home/classic_ops/validation_kyoungho_results/"
 
-YEAR = 2021
+YEAR = 2017
 MONTH = 7
-
 VARIABLES = [
     ("H_J", "hfss"),
     ("LE_J", "hfls"),
+
+    # SW
+    ("Rsd_J", "rsds"),
+    ("Rsu_J", "rsus"),   # <-- maintenant correct
+
+    # LW
+    ("Rld_J", "rlds"),
+    ("Rlu_J", "rlus"),   # <-- maintenant correct
 ]
+
 
 PERIODS = [
     "month",
-    "annual",
     "growing_season",
     "summer"
 ]
@@ -65,11 +72,22 @@ obs = obs.sort_values("Date")  #trier par date
 
 #Simulation FM
 print("... loading CLASSIC") 
+################ debug
+ds = nc.Dataset(CLASSIC_PATH_FM_K + "rss_halfhourly.nc")
+print(ds.variables["rss"][:10])
+
 
 classic_files = {
-     "hfss": "hfss_halfhourly.nc", 
-     "hfls": "hfls_halfhourly.nc", 
-     } 
+    "hfss": "hfss_halfhourly.nc",
+    "hfls": "hfls_halfhourly.nc",
+
+    # Rayonnement SW et LW
+    "rsds": "rsds_halfhourly.nc",   # SW down
+    "rss":  "rss_halfhourly.nc",    # SW net (SW absorbed)
+    "rlds": "rlds_halfhourly.nc",   # LW down
+    "rls":  "rls_halfhourly.nc",    # LW net (LW emitted)
+}
+
 
 
 
@@ -107,6 +125,23 @@ for variable, filename in classic_files.items():
      print(f" {variable} ok")
 
 
+
+print("... computing rsus and rlus")
+
+# SW↑ = SW↓ − SW_net
+classic["rsus"] = pd.DataFrame({
+    "Date": classic["rsds"]["Date"],
+    "rsus": classic["rsds"]["rsds"].values - classic["rss"]["rss"].values
+})
+
+# LW↑ = LW↓ − LW_net
+classic["rlus"] = pd.DataFrame({
+    "Date": classic["rlds"]["Date"],
+    "rlus": classic["rlds"]["rlds"].values - classic["rls"]["rls"].values
+})
+
+print("rsus / rlus OK")
+
 # CALCUL DES PERFORMANCES 
 
 results_all = [] 
@@ -125,7 +160,7 @@ for obs_variable, sim_variable in VARIABLES:
         obs_values = perf["OBS"].values 
         sim_values = perf["SIM"].values 
         results = calculate_metrics( obs_values, sim_values )
-        plot_calibration( perf, obs_variable)
+        plot_calibration( perf, obs_variable, period)
         results_all.append({ "Variable": obs_variable, "Period": period, **results })
         print_metrics(results)
 
