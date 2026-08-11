@@ -23,23 +23,49 @@ OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/data/"
 CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\classic_ops\kyoungho_calibration\CA-MonJ\outputFiles\Juvenile_Transient\\"
 OUTPUT_PATH = "/home/classic_ops/validation_kyoungho_results/"
 
-YEAR = 2017
+YEAR = 2021
 MONTH = 7
+
+SOIL_LAYER_INDEX = 0
+
+
+# Couples (variable_obs, variable_sim) comparés avec métriques + graphique
 VARIABLES = [
     ("H_J", "hfss"),
     ("LE_J", "hfls"),
-
+ 
     # SW
     ("Rsd_J", "rsds"),
-    ("Rsu_J", "rsus"),   # <-- calculer dans le module rsus-rlus.py
-
+    ("Rsu_J", "rsus"),   # calculé à partir de rsds - rss
+ 
     # LW
     ("Rld_J", "rlds"),
-    ("Rlu_J", "rlus"),   # <-- calculer dans le module rsus-rlus.py
+    ("Rlu_J", "rlus"),   # calculé à partir de rlds - rls
+ 
+    # Eau dans le sol
+    ("VWC_J", "mrsol"),
+ 
+    # Température du sol
+    ("Tsoil_J", "tsl"),
+ 
+    # GPP : deux méthodes de partitionnement obs (DT/NT),
+    # comparées toutes les deux au même GPP simulé
+    ("GPP_DT_J_gf2", "gpp"),
+    ("GPP_NT_J_gf2", "gpp"),
 ]
+ 
+# Variables de neige : pas d'observation équivalente au site J
+
+SNOW_VARIABLES = {
+    "snw": "SWE (kg/m2)",
+    "snc": "Couverture (%)",
+    "snm": "Fonte (kg/m2/s)",
+    "snd": "Profondeur (m)",
+}
 
 
 PERIODS = [
+    "annual",
     "month",
     "growing_season",
     "summer"
@@ -86,6 +112,30 @@ classic_files = {
     "rss":  "rss_halfhourly.nc",    # SW net (SW absorbed)
     "rlds": "rlds_halfhourly.nc",   # LW down
     "rls":  "rls_halfhourly.nc",    # LW net (LW emitted)
+    # Snow
+    "snw" : "snw_daily.nc", #SWE
+    "snc" : "snc_daily.nc", #couverture %
+    "snm" : "snm_daily.nc",   #fonte
+    "snd" : "snd_daily.nc", #couverture
+    
+    # Eau et température du sol
+    # (pas de version halfhourly pour mrsol dans tes sorties -> daily)
+    "mrsol": "mrsol_daily.nc",
+    "tsl":   "tsl_daily.nc",
+ 
+    # GPP
+    "gpp": "gpp_halfhourly.nc",
+ 
+    # Neige (seulement journalier dispo)
+    "snw": "snw_daily.nc",
+    "snc": "snc_daily.nc",
+    "snm": "snm_daily.nc",
+    "snd": "snd_daily.nc",
+
+    #root depth
+    "rootdpth": "rootdpth_monthly_perpft.nc",
+
+
 }
 
 
@@ -98,7 +148,16 @@ for variable, filename in classic_files.items():
 
      dataset = nc.Dataset( CLASSIC_PATH_FM_K + filename ) 
 
-     values = dataset.variables[variable][:, 0, 0] 
+     ### sans couche de sol ## values = dataset.variables[variable][:, 0, 0] 
+     
+     raw = dataset.variables[variable]
+ 
+    # Les variables de sol (mrsol, tsl) ont une dimension de couche en plus
+    # (time, layer, lat, lon) au lieu de (time, lat, lon)
+     if raw.ndim == 4:
+        values = raw[:, SOIL_LAYER_INDEX, 0, 0]
+     else:
+        values = raw[:, 0, 0]
 
      time = dataset.variables["time"] 
 
@@ -112,21 +171,19 @@ for variable, filename in classic_files.items():
             ), 
             only_use_cftime_datetimes=False 
         ) 
-     classic[variable] = pd.DataFrame({ 
-            "Date": pd.to_datetime(dates), 
-            variable: values 
-            }) 
-     classic[variable] = classic[variable].sort_values( 
-            "Date" 
-            ) 
-    
-     dataset.close() 
-        
+     df = pd.DataFrame({"Date": pd.to_datetime(dates), variable: values})
+     df = df.sort_values("Date")
+ 
+    # Conversion d'unités GPP : kgC/m2/s -> gC/m2/jour
+     if variable == "gpp":
+        df["gpp"] = df["gpp"] * 86400 * 1000
+ 
+     classic[variable] = df
+     dataset.close()
      print(f" {variable} ok")
-
-
-
+ 
 print("... computing rsus and rlus")
+
 
 # SW↑ = SW↓ − SW_net
 classic["rsus"] = pd.DataFrame({
@@ -172,3 +229,76 @@ results_df = pd.DataFrame(results_all)
 print("TABLEAU FINAL") 
 print(" ") 
 print(results_df)
+
+
+
+
+# ----------------------------------------------------------
+# NEIGE - pas de comparaison obs, seulement les séries simulées
+
+import matplotlib.pyplot as plt
+
+# --- Filtrer la neige pour l'année 2022 ---
+YEAR_SNOW = 2022
+
+for var in SNOW_VARIABLES.keys():
+    df = classic[var]
+    classic[var] = df[df["Date"].dt.year == YEAR_SNOW]
+
+
+print("... plotting snow variables")
+ 
+fig, axes = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
+ 
+for ax, (var, label) in zip(axes, SNOW_VARIABLES.items()):
+    ax.plot(classic[var]["Date"], classic[var][var])
+    ax.set_ylabel(label)
+    ax.set_title(f"CLASSIC - {var}")
+ 
+axes[-1].set_xlabel("Date")
+plt.tight_layout()
+plt.savefig(OUTPUT_PATH + "snow_variables_simulated.png", dpi=150)
+plt.close()
+ 
+print("Snow plot saved.")
+
+#-------------- root depth pas encore calculé dans classic
+ROOT_YEAR = 2021
+
+root_df = classic["rootdpth"]
+root_2022 = root_df[root_df["Date"].dt.year == ROOT_YEAR]
+root_gs_2022 = root_2022[
+    (root_2022["Date"].dt.month >= 5) &
+    (root_2022["Date"].dt.month <= 9)
+]
+
+print("... plotting root depth annual 2022")
+
+root_df = classic["rootdpth"]
+root_2022 = root_df[root_df["Date"].dt.year == 2022]
+
+plt.figure(figsize=(10,5))
+plt.plot(root_2022["Date"], root_2022["rootdpth"], marker="o", linewidth=2)
+plt.ylabel("Profondeur racinaire (m)")
+plt.title("CLASSIC – Profondeur racinaire (Annuel 2022)")
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(OUTPUT_PATH + "root_depth_annual_2022.png", dpi=150)
+plt.close()
+
+
+print("... plotting root depth growing season 2022")
+
+root_gs_2022 = root_2022[
+    (root_2022["Date"].dt.month >= 5) &
+    (root_2022["Date"].dt.month <= 9)
+]
+
+plt.figure(figsize=(10,5))
+plt.plot(root_gs_2022["Date"], root_gs_2022["rootdpth"], marker="o", linewidth=2)
+plt.ylabel("Profondeur racinaire (m)")
+plt.title("CLASSIC – Profondeur racinaire (Growing Season 2022)")
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(OUTPUT_PATH + "root_depth_growing_season_2022.png", dpi=150)
+plt.close()
