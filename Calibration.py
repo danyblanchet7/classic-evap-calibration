@@ -302,3 +302,107 @@ plt.grid(True, alpha=0.3)
 plt.tight_layout()
 plt.savefig(OUTPUT_PATH + "root_depth_growing_season_2022.png", dpi=150)
 plt.close()
+
+
+# ----------------------------------------------------------eau sol
+import os
+
+
+# dossier de sortie Windows
+OUTPUT_SOIL = r"C:\Users\danyblanchet7\Desktop\Data analysis\my-python-project\result\eau_sol"
+os.makedirs(OUTPUT_SOIL, exist_ok=True)
+
+# --- Recharger mrsol_daily.nc proprement ---
+mrsol_path = CLASSIC_PATH_FM_K + "mrsol_daily.nc"
+ds_mrsol = nc.Dataset(mrsol_path)
+
+raw = ds_mrsol.variables["mrsol"]      # (time, layer, lat, lon)
+time = ds_mrsol.variables["time"]
+
+dates = nc.num2date(
+    time[:],
+    units=time.units,
+    calendar=getattr(time, "calendar", "standard")
+)
+
+# convertir en DataFrame
+# convertir en DataFrame (conversion cftime -> datetime64)
+df = pd.DataFrame({"Date": [pd.Timestamp(d.isoformat()) for d in dates]})
+
+
+# nombre de couches
+n_layers = raw.shape[1]
+
+YEAR_SOIL = 2021
+
+# tracer chaque couche
+for layer in range(n_layers):
+
+    # extraire la couche
+    df_layer = df.copy()
+    df_layer["mrsol"] = raw[:, layer, 0, 0]
+
+    # filtrer l'année
+    df_annual = df_layer[df_layer["Date"].dt.year == YEAR_SOIL]
+
+    # tracer
+    plt.figure(figsize=(10,5))
+    plt.plot(df_annual["Date"], df_annual["mrsol"], linewidth=1.5)
+    plt.ylabel("mrsol (kg/m²)")
+    plt.title(f"CLASSIC – Eau du sol – Couche {layer} – Annuel {YEAR_SOIL}")
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+
+    # enregistrer
+    outpath = os.path.join(OUTPUT_SOIL, f"mrsol_layer{layer}_annual_{YEAR_SOIL}.png")
+    plt.savefig(outpath, dpi=150)
+    plt.close()
+
+ds_mrsol.close()
+
+######################################tt sur un seul graph
+# dossier de sortie Windows
+OUTPUT_SOIL = r"C:\Users\danyblanchet7\Desktop\Data analysis\my-python-project\result\eau_sol"
+os.makedirs(OUTPUT_SOIL, exist_ok=True)
+
+# --- Charger mrsol ---
+mrsol_path = CLASSIC_PATH_FM_K + "mrsol_daily.nc"
+ds_mrsol = nc.Dataset(mrsol_path)
+
+raw = ds_mrsol.variables["mrsol"]      # (time, layer, lat, lon)
+time = ds_mrsol.variables["time"]
+
+dates = nc.num2date(
+    time[:],
+    units=time.units,
+    calendar=getattr(time, "calendar", "standard")
+)
+
+df = pd.DataFrame({"Date": [pd.Timestamp(d.isoformat()) for d in dates]})
+
+n_layers = raw.shape[1]
+YEAR_SOIL = 2021
+
+# filtrer l'année
+df_year = df[df["Date"].dt.year == YEAR_SOIL]
+
+# --- Panel multi-couches ---
+fig, axes = plt.subplots(n_layers, 1, figsize=(12, 3*n_layers), sharex=True)
+
+for layer in range(n_layers):
+    df_layer = df_year.copy()
+    df_layer["mrsol"] = raw[:, layer, 0, 0][df_year.index]
+
+    axes[layer].plot(df_layer["Date"], df_layer["mrsol"], linewidth=1.5)
+    axes[layer].set_ylabel(f"Couche {layer}\nkg/m²")
+    axes[layer].grid(True, alpha=0.3)
+
+axes[-1].set_xlabel("Date")
+plt.suptitle(f"CLASSIC – Eau du sol – Toutes les couches – Annuel {YEAR_SOIL}", fontsize=16)
+plt.tight_layout()
+
+plt.savefig(os.path.join(OUTPUT_SOIL, f"mrsol_all_layers_annual_{YEAR_SOIL}.png"), dpi=150)
+plt.close()
+
+ds_mrsol.close()
+
