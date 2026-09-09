@@ -1,11 +1,11 @@
- #----charge pakage---------
+ ###Charge PAKAGE
 
 print("...charging pakage")
 import pandas as pd   
 import netCDF4 as nc
 import numpy as np
 
- #----charge fonction---------
+ ###Charge FONCTIONS
 
 print("...charging fonction")
 from evaluation.metrics import calculate_metrics, print_metrics
@@ -32,7 +32,7 @@ MONTH = 7
 SOIL_LAYER_INDEX = 0    
 
 
-# Couples (variable_obs, variable_sim) comparés avec métriques + graphique
+# VARIABLE (COUPLE = variable_obs, variable_sim) comparés avec métriques + graphique
 VARIABLES = [
     ("H_J", "hfss"),
     ("LE_J", "hfls"),
@@ -53,7 +53,6 @@ VARIABLES = [
     ("Tsoil_J", "tsl"),
  
     # GPP : deux méthodes de partitionnement obs (DT/NT),
-    # comparées toutes les deux au même GPP simulé
     ("GPP_DT_J_gf2", "gpp"),
    # ("GPP_NT_J_gf2", "gpp"),
 ]
@@ -262,7 +261,7 @@ plot_daily_timeseries(
     "H_J",
     "hfss",
     OUTPUT_PATH + "H_daily_all_years.png",
-    title="H – Évolution horaire sur toute la période"
+    title="H Évolution horaire sur toute la période"
 )
 
 plot_daily_timeseries(
@@ -271,7 +270,7 @@ plot_daily_timeseries(
     "LE_J",
     "hfls",
     OUTPUT_PATH + "LE_daily_all_years.png",
-    title="LE – Évolution horaire sur toute la période"
+    title="LE Évolution horaire sur toute la période"
 )
 
 print("Daily time series saved.")
@@ -289,7 +288,7 @@ plot_monthly_timeseries(
     "H_J",
     "hfss",
     OUTPUT_PATH + "H_monthly_all_years.png",
-    title="H – Évolution mensuelle – toute la période"
+    title="H Évolution mensuelle sur toute la période"
 )
 
 plot_monthly_timeseries(
@@ -298,7 +297,7 @@ plot_monthly_timeseries(
     "LE_J",
     "hfls",
     OUTPUT_PATH + "LE_monthly_all_years.png",
-    title="LE – Évolution mensuelle – toute la période"
+    title="LE Évolution mensuelle sur toute la période"
 )
 
 print("Monthly time series saved.")

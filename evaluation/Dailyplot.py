@@ -7,6 +7,30 @@ from evaluation.temporal import (
 )
 
 
+# ==========================================================
+# STYLE GRAPHIQUE
+# ==========================================================
+
+OBS_COLOR = "red"
+SIM_COLOR = "blue"
+
+FONT = "Arial"
+
+plt.rcParams.update({
+    "font.family": FONT,
+    "font.size": 10,
+    "axes.labelsize": 10,
+    "axes.titlesize": 10,
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "legend.fontsize": 9
+})
+
+
+# ==========================================================
+# GRAPHIQUE JOURNALIER
+# ==========================================================
+
 def plot_daily_timeseries(
     obs,
     sim,
@@ -34,37 +58,54 @@ def plot_daily_timeseries(
         how="inner"
     )
 
-    plt.figure(figsize=(16, 6))
+    fig, ax = plt.subplots(figsize=(12, 4))
 
-    plt.plot(
+    ax.plot(
         data["Date"],
         data["OBS"],
-        label="Observations",
-        linewidth=0.8
+        color=OBS_COLOR,
+        linewidth=1.2,
+        label="Observations"
     )
 
-    plt.plot(
+    ax.plot(
         data["Date"],
         data["SIM"],
-        label="CLASSIC",
-        linewidth=0.8
+        color=SIM_COLOR,
+        linewidth=1.2,
+        label="CLASSIC"
     )
 
-    plt.xlabel("Date")
-    plt.ylabel(obs_variable)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(obs_variable)
 
     if title is not None:
-        plt.title(title)
+        ax.set_title(title)
 
-    plt.legend()
-    plt.grid(True, alpha=0.3)
+    ax.grid(
+        True,
+        alpha=0.25,
+        linewidth=0.7
+    )
+
+    ax.legend(
+        frameon=True
+    )
+
     plt.tight_layout()
-
-    plt.savefig(output_path, dpi=150)
+    plt.savefig(
+        output_path,
+        dpi=150,
+        facecolor="white"
+    )
     plt.close()
 
     return data
 
+
+# ==========================================================
+# GRAPHIQUE MENSUEL
+# ==========================================================
 
 def plot_monthly_timeseries(
     obs,
@@ -93,33 +134,46 @@ def plot_monthly_timeseries(
         how="inner"
     )
 
-    plt.figure(figsize=(16, 6))
+    fig, ax = plt.subplots(figsize=(12, 4))
 
-    plt.plot(
+    ax.plot(
         data["Date"],
         data["OBS"],
-        label="Observations",
-        linewidth=1.2
+        color=OBS_COLOR,
+        linewidth=1.5,
+        label="Observations"
     )
 
-    plt.plot(
+    ax.plot(
         data["Date"],
         data["SIM"],
-        label="CLASSIC",
-        linewidth=1.2
+        color=SIM_COLOR,
+        linewidth=1.5,
+        label="CLASSIC"
     )
 
-    plt.xlabel("Date")
-    plt.ylabel(obs_variable)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(obs_variable)
 
     if title is not None:
-        plt.title(title)
+        ax.set_title(title)
 
-    plt.legend()
-    plt.grid(True, alpha=0.3)
+    ax.grid(
+        True,
+        alpha=0.25,
+        linewidth=0.7
+    )
+
+    ax.legend(
+        frameon=True
+    )
+
     plt.tight_layout()
-
-    plt.savefig(output_path, dpi=150)
+    plt.savefig(
+        output_path,
+        dpi=150,
+        facecolor="white"
+    )
     plt.close()
 
     return data

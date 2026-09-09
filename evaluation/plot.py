@@ -10,13 +10,15 @@ def plot_calibration(data, variable, period):
     plt.plot(
         data["Date"],
         data["OBS"],
+        color = "blue",
         label="Observations"
     )
 
     plt.plot(
         data["Date"],
         data["SIM"],
-        label="CLASSIC"
+        label="CLASSIC",
+        color = "red",
     )
 
     plt.xlabel("Date")
