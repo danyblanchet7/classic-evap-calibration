@@ -16,7 +16,6 @@ from evaluation.prepare import prepare_comparison
 print("-3 fonction prepare data shape ok ! ")
 from evaluation.periods import select_month, select_year, growing_season, summer, select_period
 print("-4 fonction define periods ok ! ")
-from evaluation.temporal import to_hourly_mean, to_daily_mean, match_time_resolution
 from evaluation.Dailyplot import ( plot_daily_timeseries, plot_monthly_timeseries)
 
 # CONFIG
@@ -28,11 +27,14 @@ OUTPUT_PATH = "C:/Users/danyblanchet7/Desktop/data analysis/FM/"
 
 YEAR = 2021
 MONTH = 7
+START_DAY = 10
+END_DAY = 20
 
 SOIL_LAYER_INDEX = 0    
 
 
 # VARIABLE (COUPLE = variable_obs, variable_sim) comparés avec métriques + graphique
+
 VARIABLES = [
     ("H_J", "hfss"),
     ("LE_J", "hfls"),
@@ -57,28 +59,7 @@ VARIABLES = [
    # ("GPP_NT_J_gf2", "gpp"),
 ]
 
-SIM_RESOLUTION = {
-
-    # Flux
-    "hfss": "half-hourly",
-    "hfls": "half-hourly",
-
-    # Rayonnement
-    "rsds": "half-hourly",
-    "rlds": "half-hourly",
-    "rsus": "half-hourly",
-    "rlus": "half-hourly",
-
-    # Sol
-    "mrsol": "daily",
-    "tsl": "daily",
-    
-
-    # GPP
-    "gpp": "half-hourly",
-
-}
-# Variables de neige, pas d'observation équivalente au site J
+    #SNOW
 
 SNOW_VARIABLES = {
     "snw": "SWE (kg/m2)",
@@ -89,15 +70,17 @@ SNOW_VARIABLES = {
 
 
 PERIODS = [
-    "annual",
+   # "annual",
     "month",
-    "growing_season",
-    "summer"
+   # "growing_season",
+    "summer",
+    "days"
 ]
 
-##----------------------------------------Load data------------------------
+##LOAD DAT OBS
 
-#Observation FM
+#FM
+
 print("...loading data obs")
 dataE1 = pd.read_csv(OBS_PATH_FM + "EVAP 1.csv") #,index_col=0 )
 print("EVAP 1 ok")
@@ -110,7 +93,7 @@ obs_list.append(dataE1)
 obs_list.append(dataE2)
 obs = pd.concat(obs_list, ignore_index=True)
 
-### conversion en datetime
+#conversion en datetime
 obs["Date"] = pd.to_datetime(
     obs[["Year", "Month", "Day", "Hour", "Minute"]]
 )
@@ -118,16 +101,16 @@ obs["Date"] = pd.to_datetime(
 obs = obs.sort_values("Date")  #trier par date 
 print("Done!")
 
+##LOAD DAT SIM
 
-#-----------------------------------------------------------------------------#
-#Simulation FM
+# FM
+
 print("... loading CLASSIC") 
 
 classic_files = {
     # LE et H
     "hfss": "hfss_halfhourly.nc",
     "hfls": "hfls_halfhourly.nc",
-
 
     # Rayonnement SW et LW
     "rsds": "rsds_halfhourly.nc",   # SW down
@@ -153,8 +136,8 @@ classic_files = {
     "rootdpth": "rootdpth_monthly_perpft.nc",
  }
 
-
 classic = {}
+
 for variable, filename in classic_files.items():
 
      print(f" loading {variable}") 
@@ -164,7 +147,8 @@ for variable, filename in classic_files.items():
      ### sans couche de sol ## values = dataset.variables[variable][:, 0, 0] 
      
      raw = dataset.variables[variable]
- 
+
+
     # Les variables de sol (mrsol, tsl) ont une dimension de couche en plus
     # (time, layer, lat, lon) au lieu de (time, lat, lon)
      if raw.ndim == 4:
@@ -197,7 +181,6 @@ for variable, filename in classic_files.items():
  
 print("... computing rsus and rlus")
 
-
 # SW↑ = SW↓ − SW_net
 classic["rsus"] = pd.DataFrame({
     "Date": classic["rsds"]["Date"],
@@ -221,15 +204,9 @@ for obs_variable, sim_variable in VARIABLES:
     
     for period in PERIODS:
         print(f"\n--- {period} ---")
-        obs_period = select_period(obs,period,YEAR, MONTH)
-        sim_period = select_period( classic[sim_variable],period,YEAR, MONTH)
+        obs_period = select_period(obs,period,YEAR, MONTH, START_DAY, END_DAY)
+        sim_period = select_period( classic[sim_variable],period,YEAR, MONTH, START_DAY, END_DAY)
         perf = prepare_comparison( obs_period, sim_period, obs_variable, sim_variable )
-             # Adaptation temporelle des observations
-        obs_period = match_time_resolution(
-            obs_period,
-            obs_variable,
-            SIM_RESOLUTION[sim_variable] )
-        perf = prepare_comparison(obs_period, sim_period,obs_variable,sim_variable)# Alignement OBS / SIM sur les dates communes
         print("OBS :", len(obs_period)) 
         print("SIM :", len(sim_period))
         print("PERF :", len(perf))
@@ -248,6 +225,8 @@ results_df = pd.DataFrame(results_all)
 print("TABLEAU FINAL") 
 print(" ") 
 print(results_df)
+
+########################################################AMELIORER A PARTIR D'ICI
 
 # ----------------------------------------------------------
 # SERIES TEMPORELLES HORAIRES SUR TOUTE LA PERIODE

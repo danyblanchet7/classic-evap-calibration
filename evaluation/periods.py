@@ -29,7 +29,16 @@ def summer(df, year):
         (df["Date"].dt.month.between(6, 8))
     ]
 
-def select_period(df, period, year, month=None):
+def select_days(df, year, month, start_day, end_day):
+
+    return df[
+        (df["Date"].dt.year == year) &
+        (df["Date"].dt.month == month) &
+        (df["Date"].dt.day.between(start_day, end_day))
+    ]
+
+
+def select_period(df, period, year, month=None, start_day=None, end_day=None):
 
     if period == "annual":
         return select_year(df, year)
@@ -42,6 +51,9 @@ def select_period(df, period, year, month=None):
 
     elif period == "month":
         return select_month(df, year, month)
+    
+    elif period == "days":
+        return select_days(df, year, month, start_day, end_day)
 
     else:
         raise ValueError(f"Période inconnue : {period}")
