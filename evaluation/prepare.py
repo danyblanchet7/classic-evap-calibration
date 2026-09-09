@@ -1,7 +1,5 @@
 import pandas as pd
 
-import pandas as pd
-
 
 def prepare_comparison(obs, sim, obs_variable, sim_variable):
 
@@ -18,4 +16,5 @@ def prepare_comparison(obs, sim, obs_variable, sim_variable):
         how="inner"
     )
 
+     
     return perf.dropna()

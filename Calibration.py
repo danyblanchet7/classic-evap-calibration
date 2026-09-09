@@ -6,33 +6,37 @@ import netCDF4 as nc
 import numpy as np
 
  #----charge fonction---------
+
 print("...charging fonction")
 from evaluation.metrics import calculate_metrics, print_metrics
-print("1) fonction metrics ok ! ")
+print("-1 fonction metrics ok ! ")
 from evaluation.plot import plot_calibration
-print("2) fonction plot ok ! ")
+print("-2 fonction plot ok ! ")
 from evaluation.prepare import prepare_comparison
-print("3) fonction prepare data shape ok ! ")
+print("-3 fonction prepare data shape ok ! ")
 from evaluation.periods import select_month, select_year, growing_season, summer, select_period
-print("4) fonction define periods ok ! ")
+print("-4 fonction define periods ok ! ")
+from evaluation.temporal import to_hourly_mean, to_daily_mean, match_time_resolution
+from evaluation.Dailyplot import ( plot_daily_timeseries, plot_monthly_timeseries)
 
 # CONFIG
 
 
 OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/data/"
-CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\classic_ops\kyoungho_calibration\CA-MonJ\outputFiles\Juvenile_Transient\\"
-OUTPUT_PATH = "/home/classic_ops/validation_kyoungho_results/"
+CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\danyblanchet7\CLASSIC\outputFiles\Juvenile_Transient\\"
+OUTPUT_PATH = "C:/Users/danyblanchet7/Desktop/data analysis/FM/"
 
 YEAR = 2021
 MONTH = 7
 
-SOIL_LAYER_INDEX = 0
+SOIL_LAYER_INDEX = 0    
 
 
 # Couples (variable_obs, variable_sim) comparés avec métriques + graphique
 VARIABLES = [
     ("H_J", "hfss"),
     ("LE_J", "hfls"),
+ 
  
     # SW
     ("Rsd_J", "rsds"),
@@ -51,10 +55,31 @@ VARIABLES = [
     # GPP : deux méthodes de partitionnement obs (DT/NT),
     # comparées toutes les deux au même GPP simulé
     ("GPP_DT_J_gf2", "gpp"),
-    ("GPP_NT_J_gf2", "gpp"),
+   # ("GPP_NT_J_gf2", "gpp"),
 ]
- 
-# Variables de neige : pas d'observation équivalente au site J
+
+SIM_RESOLUTION = {
+
+    # Flux
+    "hfss": "half-hourly",
+    "hfls": "half-hourly",
+
+    # Rayonnement
+    "rsds": "half-hourly",
+    "rlds": "half-hourly",
+    "rsus": "half-hourly",
+    "rlus": "half-hourly",
+
+    # Sol
+    "mrsol": "daily",
+    "tsl": "daily",
+    
+
+    # GPP
+    "gpp": "half-hourly",
+
+}
+# Variables de neige, pas d'observation équivalente au site J
 
 SNOW_VARIABLES = {
     "snw": "SWE (kg/m2)",
@@ -86,59 +111,48 @@ obs_list.append(dataE1)
 obs_list.append(dataE2)
 obs = pd.concat(obs_list, ignore_index=True)
 
-
-
-
+### conversion en datetime
 obs["Date"] = pd.to_datetime(
     obs[["Year", "Month", "Day", "Hour", "Minute"]]
 )
 
 obs = obs.sort_values("Date")  #trier par date 
+print("Done!")
 
 
+#-----------------------------------------------------------------------------#
 #Simulation FM
 print("... loading CLASSIC") 
-################ debug
-ds = nc.Dataset(CLASSIC_PATH_FM_K + "rss_halfhourly.nc")
-print(ds.variables["rss"][:10])
-
 
 classic_files = {
+    # LE et H
     "hfss": "hfss_halfhourly.nc",
     "hfls": "hfls_halfhourly.nc",
+
 
     # Rayonnement SW et LW
     "rsds": "rsds_halfhourly.nc",   # SW down
     "rss":  "rss_halfhourly.nc",    # SW net (SW absorbed)
     "rlds": "rlds_halfhourly.nc",   # LW down
     "rls":  "rls_halfhourly.nc",    # LW net (LW emitted)
+
     # Snow
     "snw" : "snw_daily.nc", #SWE
     "snc" : "snc_daily.nc", #couverture %
     "snm" : "snm_daily.nc",   #fonte
     "snd" : "snd_daily.nc", #couverture
     
-    # Eau et température du sol
-    # (pas de version halfhourly pour mrsol dans tes sorties -> daily)
+    # Eau et température du sol (seulement journalier dispo)
+ 
     "mrsol": "mrsol_daily.nc",
     "tsl":   "tsl_daily.nc",
  
     # GPP
     "gpp": "gpp_halfhourly.nc",
- 
-    # Neige (seulement journalier dispo)
-    "snw": "snw_daily.nc",
-    "snc": "snc_daily.nc",
-    "snm": "snm_daily.nc",
-    "snd": "snd_daily.nc",
 
     #root depth
     "rootdpth": "rootdpth_monthly_perpft.nc",
-
-
-}
-
-
+ }
 
 
 classic = {}
@@ -211,7 +225,13 @@ for obs_variable, sim_variable in VARIABLES:
         obs_period = select_period(obs,period,YEAR, MONTH)
         sim_period = select_period( classic[sim_variable],period,YEAR, MONTH)
         perf = prepare_comparison( obs_period, sim_period, obs_variable, sim_variable )
-        print("OBS :", len(obs_period))
+             # Adaptation temporelle des observations
+        obs_period = match_time_resolution(
+            obs_period,
+            obs_variable,
+            SIM_RESOLUTION[sim_variable] )
+        perf = prepare_comparison(obs_period, sim_period,obs_variable,sim_variable)# Alignement OBS / SIM sur les dates communes
+        print("OBS :", len(obs_period)) 
         print("SIM :", len(sim_period))
         print("PERF :", len(perf))
         obs_values = perf["OBS"].values 
@@ -219,7 +239,7 @@ for obs_variable, sim_variable in VARIABLES:
         results = calculate_metrics( obs_values, sim_values )
         plot_calibration( perf, obs_variable, period)
         results_all.append({ "Variable": obs_variable, "Period": period, **results })
-        print_metrics(results)
+        #print_metrics(results)
 
 
 results_df = pd.DataFrame(results_all)
@@ -230,37 +250,102 @@ print("TABLEAU FINAL")
 print(" ") 
 print(results_df)
 
+# ----------------------------------------------------------
+# SERIES TEMPORELLES HORAIRES SUR TOUTE LA PERIODE
+# ----------------------------------------------------------
 
+print("... plotting hourly time series")
+
+plot_daily_timeseries(
+    obs,
+    classic["hfss"],
+    "H_J",
+    "hfss",
+    OUTPUT_PATH + "H_daily_all_years.png",
+    title="H – Évolution horaire sur toute la période"
+)
+
+plot_daily_timeseries(
+    obs,
+    classic["hfls"],
+    "LE_J",
+    "hfls",
+    OUTPUT_PATH + "LE_daily_all_years.png",
+    title="LE – Évolution horaire sur toute la période"
+)
+
+print("Daily time series saved.")
 
 
 # ----------------------------------------------------------
-# NEIGE - pas de comparaison obs, seulement les séries simulées
+# SERIES TEMPORELLES MENSUELLES - TOUTE LA PERIODE
+# ----------------------------------------------------------
+
+print("... plotting monthly time series")
+
+plot_monthly_timeseries(
+    obs,
+    classic["hfss"],
+    "H_J",
+    "hfss",
+    OUTPUT_PATH + "H_monthly_all_years.png",
+    title="H – Évolution mensuelle – toute la période"
+)
+
+plot_monthly_timeseries(
+    obs,
+    classic["hfls"],
+    "LE_J",
+    "hfls",
+    OUTPUT_PATH + "LE_monthly_all_years.png",
+    title="LE – Évolution mensuelle – toute la période"
+)
+
+print("Monthly time series saved.")
+
 
 import matplotlib.pyplot as plt
-
-# --- Filtrer la neige pour l'année 2022 ---
-YEAR_SNOW = 2022
-
-for var in SNOW_VARIABLES.keys():
-    df = classic[var]
-    classic[var] = df[df["Date"].dt.year == YEAR_SNOW]
-
+# ----------------------------------------------------------
+# NEIGE - séries simulées sur toute la période
+# ----------------------------------------------------------
 
 print("... plotting snow variables")
- 
-fig, axes = plt.subplots(4, 1, figsize=(10, 12), sharex=True)
- 
+
+fig, axes = plt.subplots(
+    4, 1,
+    figsize=(12, 12),
+    sharex=True
+)
+
 for ax, (var, label) in zip(axes, SNOW_VARIABLES.items()):
-    ax.plot(classic[var]["Date"], classic[var][var])
+
+    df_snow = classic[var]
+
+    ax.plot(
+        df_snow["Date"],
+        df_snow[var],
+        linewidth=1
+    )
+
     ax.set_ylabel(label)
     ax.set_title(f"CLASSIC - {var}")
- 
+
+    ax.grid(True, alpha=0.3)
+
 axes[-1].set_xlabel("Date")
+
 plt.tight_layout()
-plt.savefig(OUTPUT_PATH + "snow_variables_simulated.png", dpi=150)
+
+plt.savefig(
+    OUTPUT_PATH + "snow_variables_simulated_all_years.png",
+    dpi=150
+)
+
 plt.close()
- 
+
 print("Snow plot saved.")
+
+
 
 #-------------- root depth pas encore calculé dans classic
 ROOT_YEAR = 2021
@@ -360,49 +445,4 @@ for layer in range(n_layers):
 
 ds_mrsol.close()
 
-######################################tt sur un seul graph
-# dossier de sortie Windows
-OUTPUT_SOIL = r"C:\Users\danyblanchet7\Desktop\Data analysis\my-python-project\result\eau_sol"
-os.makedirs(OUTPUT_SOIL, exist_ok=True)
-
-# --- Charger mrsol ---
-mrsol_path = CLASSIC_PATH_FM_K + "mrsol_daily.nc"
-ds_mrsol = nc.Dataset(mrsol_path)
-
-raw = ds_mrsol.variables["mrsol"]      # (time, layer, lat, lon)
-time = ds_mrsol.variables["time"]
-
-dates = nc.num2date(
-    time[:],
-    units=time.units,
-    calendar=getattr(time, "calendar", "standard")
-)
-
-df = pd.DataFrame({"Date": [pd.Timestamp(d.isoformat()) for d in dates]})
-
-n_layers = raw.shape[1]
-YEAR_SOIL = 2021
-
-# filtrer l'année
-df_year = df[df["Date"].dt.year == YEAR_SOIL]
-
-# --- Panel multi-couches ---
-fig, axes = plt.subplots(n_layers, 1, figsize=(12, 3*n_layers), sharex=True)
-
-for layer in range(n_layers):
-    df_layer = df_year.copy()
-    df_layer["mrsol"] = raw[:, layer, 0, 0][df_year.index]
-
-    axes[layer].plot(df_layer["Date"], df_layer["mrsol"], linewidth=1.5)
-    axes[layer].set_ylabel(f"Couche {layer}\nkg/m²")
-    axes[layer].grid(True, alpha=0.3)
-
-axes[-1].set_xlabel("Date")
-plt.suptitle(f"CLASSIC – Eau du sol – Toutes les couches – Annuel {YEAR_SOIL}", fontsize=16)
-plt.tight_layout()
-
-plt.savefig(os.path.join(OUTPUT_SOIL, f"mrsol_all_layers_annual_{YEAR_SOIL}.png"), dpi=150)
-plt.close()
-
-ds_mrsol.close()
 
