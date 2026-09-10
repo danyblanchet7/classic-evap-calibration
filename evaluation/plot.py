@@ -1,9 +1,8 @@
 ##plot
 import matplotlib.pyplot as plt   
 import matplotlib.pyplot as plt
-import os 
 
-def plot_calibration(data, variable, period):
+def plot_calibration(data, variable, period, output_path):
 
     plt.figure(figsize=(12, 5))
 
@@ -27,8 +26,9 @@ def plot_calibration(data, variable, period):
     plt.grid()
 
     plt.tight_layout()
-    os.makedirs("result", exist_ok=True)
-    filename = f"result/{variable}_{period}.png"
-    plt.savefig(filename)
-    plt.close()  
-    plt.show()
+    filename = output_path + f"{variable}_{period}.png"
+
+    plt.savefig(filename, dpi=300)
+    plt.close()
+
+    print(f"Graphique sauvegardé : {filename}")

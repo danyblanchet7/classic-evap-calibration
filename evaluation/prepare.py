@@ -13,7 +13,7 @@ def prepare_comparison(obs, sim, obs_variable, sim_variable):
         obs,
         sim,
         on="Date",
-        how="inner"
+        how="inner" #ne garde que les dates présentes dans les deux DataFrames
     )
 
      
