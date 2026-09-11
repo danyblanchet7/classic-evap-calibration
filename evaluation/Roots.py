@@ -1,34 +1,33 @@
 import matplotlib.pyplot as plt
 
 
-# PROFONDEUR RACINAIRE
-
-
 def plot_root_depth(
     root_df,
     output_path,
-    year
+    start_year,
+    end_year
 ):
 
-    print(f"... plotting root depth {year}")
+    print(
+        f"... plotting root depth "
+        f"{start_year}-{end_year}"
+    )
 
-
-    # Sélection de l'année
-
-    root_year = root_df[
-        root_df["Date"].dt.year == year
+    # Sélection de la période
+    root_period = root_df[
+        (root_df["Date"].dt.year >= start_year)
+        & (root_df["Date"].dt.year <= end_year)
     ]
 
-
     plt.figure(
-        figsize=(10, 5)
+        figsize=(12, 5)
     )
 
     plt.plot(
-        root_year["Date"],
-        root_year["rootdpth"],
+        root_period["Date"],
+        root_period["rootdpth"],
         marker="o",
-        linewidth=2
+        linewidth=1.5
     )
 
     plt.ylabel(
@@ -40,7 +39,8 @@ def plot_root_depth(
     )
 
     plt.title(
-        f"CLASSIC - Profondeur racinaire - {year}"
+        f"CLASSIC - Profondeur racinaire - "
+        f"{start_year}-{end_year}"
     )
 
     plt.grid(
@@ -52,9 +52,10 @@ def plot_root_depth(
 
     plt.savefig(
         output_path
-        + f"root_depth_annual_{year}.png",
+        + f"root_depth_{start_year}_{end_year}.png",
         dpi=150
     )
 
     plt.close()
-    print("Root depth plots saved.")
+
+    print("Root depth plot saved.")

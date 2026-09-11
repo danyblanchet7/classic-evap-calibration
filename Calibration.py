@@ -273,10 +273,7 @@ plot_soil_water_layers(
     OUTPUT_WSOIL,
     YEAR_SOIL
 )
+root_df=classic["rootdpth"]
+output_path=OUTPUT_PATH
 
-
-plot_root_depth(
-    root_df=classic["rootdpth"],
-    output_path=OUTPUT_PATH,
-    year=ROOT_YEAR
-)
+plot_root_depth(root_df,output_path,2016,2024)
