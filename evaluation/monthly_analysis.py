@@ -161,9 +161,8 @@ def analyze_monthly_outputs(
     output_path
 ):
 
-    # ------------------------------------------------------
     # H
-    # ------------------------------------------------------
+
 
     hfss_file = classic_path + "hfss_monthly.nc"
 

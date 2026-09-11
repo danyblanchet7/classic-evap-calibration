@@ -1,11 +1,7 @@
 import matplotlib.pyplot as plt
 
 
-def plot_snow_variables(
-    classic,
-    snow_variables,
-    output_path
-):
+def plot_snow_variables(classic,snow_variables,output_path):
 
     print("... plotting snow variables")
 

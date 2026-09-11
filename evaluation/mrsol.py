@@ -1,24 +1,15 @@
-import os
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import netCDF4 as nc
 
 
-def plot_soil_water_layers(
-    CLASSIC_PATH_FM_K,
-    OUTPUT_SOIL,
-    YEAR_SOIL
-):
+def plot_soil_water_layers(CLASSIC_PATH_FM_K,OUTPUT_WSOIL,YEAR_SOIL):
 
-    # dossier de sortie
-    os.makedirs(
-        OUTPUT_SOIL,
-        exist_ok=True
-    )
 
-    # ------------------------------------------------------
-    # Recharger mrsol_daily.nc
-    # ------------------------------------------------------
+ 
+ # charger mrsol_daily.nc
+
 
     mrsol_path = CLASSIC_PATH_FM_K + "mrsol_daily.nc"
 
@@ -39,9 +30,8 @@ def plot_soil_water_layers(
         )
     )
 
-    # ------------------------------------------------------
     # Convertir les dates en DataFrame
-    # ------------------------------------------------------
+
 
     df = pd.DataFrame({
         "Date": [
@@ -50,15 +40,15 @@ def plot_soil_water_layers(
         ]
     })
 
-    # ------------------------------------------------------
+
     # Nombre de couches
-    # ------------------------------------------------------
+
 
     n_layers = raw.shape[1]
 
-    # ------------------------------------------------------
+
     # Tracer chaque couche
-    # ------------------------------------------------------
+
 
     for layer in range(n_layers):
 
@@ -74,42 +64,14 @@ def plot_soil_water_layers(
             df_layer["Date"].dt.year == YEAR_SOIL
         ]
 
-        # tracer
-        plt.figure(
-            figsize=(10, 5)
-        )
-
-        plt.plot(
-            df_annual["Date"],
-            df_annual["mrsol"],
-            linewidth=1.5
-        )
-
+    
+        plt.figure(figsize=(10, 5))
+        plt.plot(df_annual["Date"],df_annual["mrsol"],linewidth=1.5)
         plt.ylabel("mrsol (kg/m²)")
-
-        plt.title(
-            f"CLASSIC - Eau du sol - "
-            f"Couche {layer} - Annuel {YEAR_SOIL}"
-        )
-
-        plt.grid(
-            True,
-            alpha=0.3
-        )
-
+        plt.title(f"CLASSIC - Eau du sol - " f"Couche {layer} - Annuel {YEAR_SOIL}")
+        plt.grid(True,alpha=0.3)
         plt.tight_layout()
-
-        # enregistrer
-        outpath = os.path.join(
-            OUTPUT_SOIL,
-            f"mrsol_layer{layer}_annual_{YEAR_SOIL}.png"
-        )
-
-        plt.savefig(
-            outpath,
-            dpi=150
-        )
-
+        plt.savefig(OUTPUT_WSOIL + f"mrsol_layer{layer}_annual_{YEAR_SOIL}.png",dpi=150)
         plt.close()
 
     # fermer le fichier NetCDF
