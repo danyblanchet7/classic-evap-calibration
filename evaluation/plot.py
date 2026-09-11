@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt   
 import matplotlib.pyplot as plt
 
-def plot_calibration(data, variable, period, output_path):
+def plot_calibration(data, variable, period, units, output_path):
 
     plt.figure(figsize=(12, 5))
 
@@ -21,7 +21,7 @@ def plot_calibration(data, variable, period, output_path):
     )
 
     plt.xlabel("Date")
-    plt.ylabel(variable)
+    plt.ylabel(variable + " (" + units + ")")
     plt.legend()
     plt.grid()
 
