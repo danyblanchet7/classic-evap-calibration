@@ -31,11 +31,11 @@ OBS_PATH_FM = "C:/Users/danyblanchet7/Desktop/data analysis/data/"
 CLASSIC_PATH_FM_K = r"\\wsl.localhost\Ubuntu\home\danyblanchet7\CLASSIC\outputFiles\Juvenile_Transient\\"
 OUTPUT_PATH = "C:/Users/danyblanchet7/Desktop/data analysis/FM/FM/"
 OUTPUT_MONTHLY = "C:/Users/danyblanchet7/Desktop/data analysis/FM/Monthly/"
-OUTPUT_WSOIL = "C:/Users/danyblanchet7/Desktop/data analysis/FM/WS/"
+OUTPUT_WSOIL = "C:/Users/danyblanchet7/Desktop/data analysis/FM/SWC/"
 OUTPUT_SNOW = "C:/Users/danyblanchet7/Desktop/data analysis/FM/SNOW/"
 
 YEAR = 2021
-MONTH = 10
+MONTH = 7
 START_DAY = 10
 END_DAY = 25
 
@@ -127,7 +127,7 @@ classic_files = {                 ###Dictionnaire
     "rsds": "rsds_halfhourly.nc",   # SW down
     "rss":  "rss_halfhourly.nc",    # SW net (SW absorbed)
     "rlds": "rlds_halfhourly.nc",   # LW down
-    "rls":  "rls_halfhourly.nc",    # LW net (LW emitted)
+    "rls":  "rls_halfhourly.nc",    # LW net (fif between emitted and arrived)
 
     # Snow
     "snw" : "snw_daily.nc", #SWE
@@ -149,43 +149,96 @@ classic_files = {                 ###Dictionnaire
 
 classic = {}                      ###Gestion des output CLASSIC
 
-for variable, filename,  in classic_files.items():   
+classic = {}
 
-     print(f" loading {variable}") 
+for variable, filename in classic_files.items():
 
-     dataset = nc.Dataset( CLASSIC_PATH_FM_K + filename )  ## accès au contenu netCDF
-     Vraw = dataset.variables[variable]
-                                        ### sans couche de sol values = dataset.variables[variable][:, 0, 0]   # Les variables de sol (mrsol, tsl) ont une dimension de couche en plus
-                                        # (time, layer, lat, lon) au lieu de (time, lat, lon)        
-     if Vraw.ndim == 4:
-        values = Vraw[:, SOIL_LAYER_INDEX, 0, 0]
-     else:
-        values = Vraw[:, 0, 0]
-     
-     time = dataset.variables["time"] #partie delicate de gestion du temps
+    print(f" loading {variable}")
 
-     dates = nc.num2date(   ##fait la conversion en bon format de date
-        time[:],  #prends toutes les valeurs de la variable time
-        units=time.units, ##Unité utilisé par NetCDF pour encoder le temps.
-        only_use_cftime_datetimes=False   ##num2date de ne pas utiliser systématiquement les objets cftime quand des objets datetime Python classiques peuvent être utilisés
-        ) 
-     df = pd.DataFrame({"Date": pd.to_datetime(dates), variable: values}) ##Transformation en tableau structuré 
-     df = df.sort_values("Date")
- 
-    # Conversion d'unités GPP : kgC/m2/s -> gC/m2/jour
-     if variable == "gpp":
-        df["gpp"] = df["gpp"] * 86400 * 1000
- 
-     classic[variable] = df
-     dataset.close()
-     print(f" {variable} ok")
-        
-         # Conversion mrsol (kg/m2) -> contenu volumétrique en eau (m3/m3)
-    # theta = mrsol / (rho_eau * epaisseur_couche)
-     if variable == "mrsol":
-        rho_eau = 1000.0  # kg/m3
-        delz = 0.1        # m, épaisseur de la couche SOIL_LAYER_INDEX (uniforme ici)
-        df["mrsol"] = df["mrsol"] / (rho_eau * delz)
+    dataset = nc.Dataset(CLASSIC_PATH_FM_K + filename)
+    Vraw = dataset.variables[variable]
+
+    # =========================================================
+    # ROOT DEPTH : on conserve les PFT
+    # =========================================================
+    if variable == "rootdpth":
+
+        # Dimensions de la variable
+        print("   rootdpth dimensions :", Vraw.dimensions)
+        print("   rootdpth shape :", Vraw.shape)
+
+        # On récupère PFT 1 et PFT 8
+        values_pft1 = Vraw[:, 0, 0, 0]
+        values_pft8 = Vraw[:, 7, 0, 0]
+
+        time = dataset.variables["time"]
+
+        dates = nc.num2date(
+            time[:],
+            units=time.units,
+            only_use_cftime_datetimes=False
+        )
+
+        root_df = pd.DataFrame({
+            "Date": pd.to_datetime(dates),
+            "PFT1": values_pft1,
+            "PFT8": values_pft8
+        })
+
+        root_df = root_df.sort_values("Date")
+
+        classic[variable] = root_df
+        root = dataset.variables["rootdpth"]
+
+        print(root.dimensions)
+        print(root.shape)
+
+        print(root[:, 0, 0, 0])
+        print(root[:, 7, 0, 0])
+        dataset.close()
+
+        print(" rootdpth PFT1/PFT8 ok")
+
+
+    # AUTRES VARIABLES 
+
+    else:
+
+        if Vraw.ndim == 4:
+            values = Vraw[:, SOIL_LAYER_INDEX, 0, 0]
+        else:
+            values = Vraw[:, 0, 0]
+
+        time = dataset.variables["time"]
+
+        dates = nc.num2date(
+            time[:],
+            units=time.units,
+            only_use_cftime_datetimes=False
+        )
+
+        df = pd.DataFrame({
+            "Date": pd.to_datetime(dates),
+            variable: values
+        })
+
+        df = df.sort_values("Date")
+
+        # Conversion GPP
+        if variable == "gpp":
+            df["gpp"] = df["gpp"] * 86400 * 1000
+
+        # Conversion mrsol
+        if variable == "mrsol":
+            rho_eau = 1000.0
+            delz = 0.1
+            df["mrsol"] = df["mrsol"] / (rho_eau * delz)
+
+        classic[variable] = df
+
+        dataset.close()
+
+        print(f" {variable} ok")
  
 print("... computing rsus and rlus")
 
@@ -265,9 +318,6 @@ plot_snow_variables(
     output_path=OUTPUT_SNOW + "snow_variables_simulated_all_years.png"
 )
 
-
-
-
 plot_soil_water_layers(
     CLASSIC_PATH_FM_K,
     OUTPUT_WSOIL,
@@ -276,4 +326,11 @@ plot_soil_water_layers(
 root_df=classic["rootdpth"]
 output_path=OUTPUT_PATH
 
-plot_root_depth(root_df,output_path,2016,2024)
+
+
+plot_root_depth(
+    root_df,
+    OUTPUT_PATH,
+    2016,
+    2024
+)
