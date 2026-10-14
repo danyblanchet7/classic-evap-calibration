@@ -2,19 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-def to_hourly_mean(df, variable):
-
-    df = df.copy()
-    df["Date"] = pd.to_datetime(df["Date"])
-
-    return (
-        df.set_index("Date")[variable]
-        .resample("1h")
-        .mean()
-        .reset_index()
-    )
-
-
 def to_daily_mean(df, variable):
 
     df = df.copy()
@@ -51,12 +38,6 @@ def match_time_resolution(
 
         return obs.copy()
 
-    elif sim_resolution == "hourly":
-
-        return to_hourly_mean(
-            obs,
-            obs_variable
-        )
 
     elif sim_resolution == "daily":
 

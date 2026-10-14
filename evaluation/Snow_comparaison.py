@@ -2,17 +2,12 @@ import netCDF4
 import matplotlib.pyplot as plt
 import pandas as pd
 
-# ============================================================
-# CHEMINS
-# ============================================================
-
 OBS_PATH = r"C:\Users\danyblanchet7\Desktop\Data analysis\data\snow_database_FM_23_25(in).csv"
 
 CLASSIC_PATH = r"\\wsl.localhost\Ubuntu\home\danyblanchet7\CLASSIC\outputFiles\Juvenile_Transient\\"
 
-# ============================================================
-# OBSERVATIONS
-# ============================================================
+#MANAGING OBSERVATIONS
+
 
 obs = pd.read_csv(OBS_PATH)
 
@@ -21,16 +16,12 @@ obs["Date"] = pd.to_datetime(
     format="mixed"
 )
 
-# ============================================================
 # ISOLER LG ET CAN
-# ============================================================
 
 obs_LG = obs[obs["site"] == "LG"].copy()
 obs_CAN = obs[obs["site"] == "CAN"].copy()
 
-# ============================================================
 # PÉRIODE
-# ============================================================
 
 start_date = "2023-10-01"
 end_date = "2025-05-31"
@@ -45,9 +36,9 @@ obs_CAN = obs_CAN[
     (obs_CAN["Date"] < "2025-06-01")
 ]
 
-# ============================================================
-# MOYENNE JOURNALIÈRE LG + CAN
-# ============================================================
+
+# MEAN JOURNALIÈRE LG + CAN
+
 
 LG_daily = (
     obs_LG
@@ -63,7 +54,7 @@ CAN_daily = (
     .mean()
 )
 
-# Moyenne LG + CAN
+# MEAN LG + CAN
 obs_mean = pd.concat(
     [LG_daily, CAN_daily],
     axis=1
@@ -73,9 +64,9 @@ obs_mean.columns = ["LG", "CAN"]
 
 obs_mean["OBS_mean"] = obs_mean[["LG", "CAN"]].mean(axis=1)
 
-# ============================================================
+
 # CLASSIC : SNOW DEPTH
-# ============================================================
+
 
 classic_snd = netCDF4.Dataset(
     CLASSIC_PATH + "snd_daily.nc"
@@ -89,7 +80,7 @@ snd = classic_snd.variables["snd"][:, 0, 0]
 print("Dimensions time :", time.shape)
 print("Dimensions snd  :", classic_snd.variables["snd"].shape)
 
-# Conversion du temps CLASSIC
+# Datetime
 classic_dates = netCDF4.num2date(
     time,
     classic_snd.variables["time"].units,
@@ -101,15 +92,16 @@ classic_snd_df = pd.DataFrame({
     "snd_cm": snd * 100
 })
 
-# Garder 2023-10-01 → 2025-05-31
+# Filtrer périodes
+
 classic_snd_df = classic_snd_df[
     (classic_snd_df["Date"] >= "2023-10-01") &
     (classic_snd_df["Date"] < "2025-06-01")
 ]
 
-# ============================================================
-# COMPARAISON OBS VS CLASSIC
-# ============================================================
+
+# PLOT COMPARAISON OBS VS CLASSIC
+
 
 fig, ax = plt.subplots(figsize=(14, 6))
 

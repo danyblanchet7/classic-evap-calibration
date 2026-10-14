@@ -97,16 +97,6 @@ CONFIG = {
     "threshold_mode": "peltola",
 }
 
-PELTOLA_THRESHOLDS = [
-    (-np.inf, -2.0, "extreme"),
-    (-2.0, -1.5, "grave"),
-    (-1.5, -1.0, "moderee"),
-    (-1.0, -0.5, "legere"),
-    (-0.5, np.inf, "aucune"),
-]
-PELTOLA_LEGEND = {0: "extreme", 1: "grave", 2: "moderee", 3: "legere", 4: "aucune"}
-
-
 # --------------------------------------------------------------------
 # 1. CHARGEMENT (point unique -> pandas.Series, pas besoin de Dask)
 # --------------------------------------------------------------------
@@ -333,12 +323,6 @@ def empirical_standardize(series, ref_period=None, growing_season_months=None):
     )
 
 
-# --------------------------------------------------------------------
-# 5. GRAPHIQUES
-# --------------------------------------------------------------------
-
-# Couleurs pour les 5 classes de Peltola (extreme -> aucune)
-PELTOLA_COLORS = {0: "#7f0000", 1: "#d7301f", 2: "#fc8d59", 3: "#fdcc8a", 4: "#e0f3f8"}
 
 
 def detect_compound_dry_events(sami, ssmi, cfg):
@@ -781,94 +765,6 @@ def plot_quadrant_density(sami, ssmi, cfg, highlight_years=None):
     plt.close(fig)
     print(f"  - Graphique 4 cadrants : {os.path.abspath(out_path)}")
 
-
-def plot_timeseries(sami, ssmi, cfg):
-    """
-    Graphique : series temporelles de SAMI et SSMI, avec des zones
-    ombragees pour chaque niveau de severite (seuils de Peltola et al.).
-    """
-    fig, axes = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
-
-    for ax, series, label, color in zip(
-        axes, [sami, ssmi], ["SAMI (air)", "SSMI (sol)"], ["#1f77b4", "#8c564b"]
-    ):
-        valid = series.dropna()
-        ax.plot(valid.index, valid.values, color=color, linewidth=0.8)
-
-        # Zones de severite (ombrage horizontal)
-        for lo, hi, _label in PELTOLA_THRESHOLDS:
-            lo_plot = max(lo, valid.min() - 0.5) if np.isfinite(lo) else valid.min() - 0.5
-            hi_plot = min(hi, valid.max() + 0.5) if np.isfinite(hi) else valid.max() + 0.5
-            ax.axhspan(lo_plot, hi_plot, color=PELTOLA_COLORS[
-                [i for i, (l, h, lb) in enumerate(PELTOLA_THRESHOLDS) if lb == _label][0]
-            ], alpha=0.15, zorder=0)
-
-        ax.axhline(0, color="black", linewidth=0.5, linestyle="--")
-        ax.set_ylabel(f"{label}\n(ecart-type)")
-        ax.grid(alpha=0.3)
-
-    axes[-1].set_xlabel("Date")
-    fig.suptitle("SAMI et SSMI - serie temporelle standardisee", fontsize=13)
-    fig.tight_layout()
-
-    out_path = os.path.join(cfg["output_dir"], "SAMI_SSMI_timeseries.png")
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  - Graphique : {os.path.abspath(out_path)}")
-
-
-def plot_indices_reference_period(sami, ssmi, cfg):
-    ref_start = pd.Timestamp(cfg["ref_period"][0])
-    ref_end = pd.Timestamp(cfg["ref_period"][1])
-
-    sami_ref = sami.loc[ref_start:ref_end]
-    ssmi_ref = ssmi.loc[ref_start:ref_end]
-
-    fig, ax = plt.subplots(figsize=(14, 5))
-
-    ax.plot(
-        sami_ref.index,
-        sami_ref.values,
-        linewidth=0.7,
-        label="SAMI"
-    )
-
-    ax.plot(
-        ssmi_ref.index,
-        ssmi_ref.values,
-        linewidth=0.7,
-        label="SSMI"
-    )
-
-    # Seuils Peltola
-    ax.axhline(-0.5, linestyle="--", linewidth=0.8)
-    ax.axhline(-1.0, linestyle="--", linewidth=0.8)
-    ax.axhline(-1.5, linestyle="--", linewidth=0.8)
-    ax.axhline(-2.0, linestyle="--", linewidth=0.8)
-
-    ax.axhline(0, linewidth=0.8)
-
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Indice standardisé")
-    # Titre corrige : reflete les VRAIES dates configurees (plutot que
-    # la mention fixe "2011-2020" de la version precedente)
-    ax.set_title(
-        f"SAMI et SSMI pendant la periode de reference "
-        f"({ref_start.date()} - {ref_end.date()})"
-    )
-    ax.legend()
-    ax.grid(alpha=0.3)
-
-    fig.tight_layout()
-
-    out_path = os.path.join(
-        cfg["output_dir"],
-        "SAMI_SSMI_reference_period.png"
-    )
-
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-    print(f"  - Graphique periode de reference : {os.path.abspath(out_path)}")
 
 
 # --------------------------------------------------------------------
@@ -1316,37 +1212,6 @@ def plot_reference_period(vpd, cfg):
     print(f"  - Graphique période de référence : {os.path.abspath(out_path)}")
 
 
-def plot_reference_by_doy(vpd, cfg):
-    ref_start = pd.Timestamp(cfg["ref_period"][0])
-    ref_end = pd.Timestamp(cfg["ref_period"][1])
-
-    ref = vpd.loc[ref_start:ref_end].copy()
-
-    fig, ax = plt.subplots(figsize=(14, 5))
-
-    ax.scatter(
-        ref.index.dayofyear,
-        ref.values,
-        s=4,
-        alpha=0.4
-    )
-
-    ax.set_xlabel("Jour de l'année")
-    ax.set_ylabel("VPD (kPa)")
-    ax.set_title("Distribution du VPD pendant la période de référence")
-    ax.grid(alpha=0.3)
-
-    fig.tight_layout()
-
-    out_path = os.path.join(
-        cfg["output_dir"],
-        "VPD_reference_by_DOY.png"
-    )
-
-    fig.savefig(out_path, dpi=150)
-    plt.close(fig)
-
-
 def plot_indices_comparison(sami, ssmi, ssi3, cfg):
     """
     Compare SAMI, SSMI et SSI-3 sur une meme figure.
@@ -1540,6 +1405,8 @@ def plot_indices_comparison(sami, ssmi, ssi3, cfg):
 
 def main(cfg):
 
+    
+
     os.makedirs(
         cfg["output_dir"],
         exist_ok=True
@@ -1588,12 +1455,7 @@ def main(cfg):
         propagation_sami_ssi,
         cfg
     )
-    # Graphique de la periode de reference
-    plot_indices_reference_period(
-        sami,
-        ssmi,
-        cfg
-    )
+
 
     # Graphique en 4 cadrants (densite SAMI vs SSMI)
     plot_quadrant_density(sami, ssmi, cfg)
