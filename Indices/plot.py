@@ -13,13 +13,11 @@ from standardization import empirical_probability, reference_values
 
 QUAD_LIM = 3.0
 
-
-def _save(fig, cfg, filename, **kwargs):
+def _save(fig, cfg, filename, dpi=150, **kwargs):
     path = os.path.join(cfg["output_dir"], filename)
-    fig.savefig(path, dpi=150, **kwargs)
+    fig.savefig(path, dpi=dpi, **kwargs)
     plt.close(fig)
     print(f"  - {os.path.abspath(path)}")
-
 
 def _quadrant_background(ax, df):
     """Densite KDE (verte) + lignes a 0 + labels des 4 cadrans."""
@@ -82,32 +80,162 @@ def plot_indices_reference_period(sami, ssmi, cfg):
     _save(fig, cfg, "SAMI_SSMI_reference_period.png")
 
 
+
 def plot_quadrant_density(sami, ssmi, cfg):
-    """Densite SAMI vs SSMI (4 cadrans), contours bleus pour les annees en surbrillance."""
+    """Densite SAMI vs SSMI avec deux distributions marginales."""
+
     highlight_years = cfg.get("quadrant_highlight_years")
-    df = pd.concat([ssmi.rename("SSMI"), sami.rename("SAMI")], axis=1).dropna()
+
+    df = pd.concat(
+        [ssmi.rename("SSMI"), sami.rename("SAMI")],
+        axis=1
+    ).dropna()
+
     if len(df) < 10:
         print("  ! Pas assez de points valides pour le graphique en 4 cadrans.")
         return
 
-    fig, ax = plt.subplots(figsize=(7, 6.5))
+    # Annees en surbrillance
+    hl = df[df.index.year.isin(highlight_years)] if highlight_years else None
+
+    # ---------------------------------------------------------
+    # Figure : marginale du haut, graphique central, marginale droite
+    # ---------------------------------------------------------
+    fig = plt.figure(figsize=(8, 7.2))
+
+    gs = fig.add_gridspec(
+        2, 2,
+        width_ratios=[5, 1.15],
+        height_ratios=[1.15, 5],
+        left=0.12,
+        right=0.96,
+        bottom=0.11,
+        top=0.90,
+        wspace=0.04,
+        hspace=0.04
+    )
+
+    ax_top = fig.add_subplot(gs[0, 0])
+    ax = fig.add_subplot(gs[1, 0], sharex=ax_top)
+    ax_right = fig.add_subplot(gs[1, 1], sharey=ax)
+
+    # ---------------------------------------------------------
+    # 1. GRAPHIQUE CENTRAL : code original conservé
+    # ---------------------------------------------------------
     xx, yy, positions = _quadrant_background(ax, df)
 
     if highlight_years:
-        hl = df[df.index.year.isin(highlight_years)]
         if len(hl) >= 10:
-            kde_hl = gaussian_kde(np.vstack([hl["SSMI"].values, hl["SAMI"].values]))
-            ax.contour(xx, yy, np.reshape(kde_hl(positions).T, xx.shape),
-                       levels=8, cmap="Blues", linewidths=1.2)
+            kde_hl = gaussian_kde(
+                np.vstack([hl["SSMI"].values, hl["SAMI"].values])
+            )
+            ax.contour(
+                xx, yy,
+                np.reshape(kde_hl(positions).T, xx.shape),
+                levels=8,
+                cmap="Blues",
+                linewidths=1.2
+            )
         else:
-            print(f"  ! Pas assez de points pour {highlight_years} ({len(hl)}).")
+            print(
+                f"  ! Pas assez de points pour "
+                f"{highlight_years} ({len(hl)})."
+            )
 
+    # ---------------------------------------------------------
+    # 2. MARGINALE DU HAUT : distribution du SSMI
+    # ---------------------------------------------------------
+    x = df["SSMI"].to_numpy()
+    x_grid = np.linspace(-QUAD_LIM, QUAD_LIM, 300)
+
+    kde_x = gaussian_kde(x)
+    density_x = kde_x(x_grid)
+
+    ax_top.fill_between(
+        x_grid, 0, density_x,
+        color="#b7e4b0",
+        alpha=0.8
+    )
+    ax_top.plot(
+        x_grid, density_x,
+        color="#477f42",
+        linewidth=1.4
+    )
+
+    # Courbe de l'année sélectionnée : ligne seule, sans remplissage
+    if highlight_years and len(hl) >= 10:
+        x_hl = hl["SSMI"].to_numpy()
+        if np.std(x_hl) > 0:
+            kde_x_hl = gaussian_kde(x_hl)
+            ax_top.plot(
+                x_grid, kde_x_hl(x_grid),
+                color=plt.cm.Blues(0.85),
+                linewidth=1.4
+            )
+
+    ax_top.set_xlim(-QUAD_LIM, QUAD_LIM)
+    ax_top.set_ylim(bottom=0)
+    ax_top.axvline(
+        0, color="black", linestyle="--", linewidth=0.8
+    )
+    ax_top.tick_params(axis="x", bottom=False, labelbottom=False)
+    ax_top.tick_params(axis="y", labelsize=8)
+    ax_top.set_ylabel("Densité", fontsize=8)
+
+    # ---------------------------------------------------------
+    # 3. MARGINALE DE DROITE : distribution du SAMI
+    # ---------------------------------------------------------
+    y = df["SAMI"].to_numpy()
+    y_grid = np.linspace(-QUAD_LIM, QUAD_LIM, 300)
+
+    kde_y = gaussian_kde(y)
+    density_y = kde_y(y_grid)
+
+    ax_right.fill_betweenx(
+        y_grid, 0, density_y,
+        color="#b7e4b0",
+        alpha=0.8
+    )
+    ax_right.plot(
+        density_y, y_grid,
+        color="#477f42",
+        linewidth=1.4
+    )
+
+    # Courbe de l'année sélectionnée : ligne seule, sans remplissage
+    if highlight_years and len(hl) >= 10:
+        y_hl = hl["SAMI"].to_numpy()
+        if np.std(y_hl) > 0:
+            kde_y_hl = gaussian_kde(y_hl)
+            ax_right.plot(
+                kde_y_hl(y_grid), y_grid,
+                color=plt.cm.Blues(0.85),
+                linewidth=1.4
+            )
+
+    ax_right.set_ylim(-QUAD_LIM, QUAD_LIM)
+    ax_right.set_xlim(left=0)
+    ax_right.axhline(
+        0, color="black", linestyle="--", linewidth=0.8
+    )
+    ax_right.tick_params(axis="y", left=False, labelleft=False)
+    ax_right.tick_params(axis="x", labelsize=8)
+    ax_right.set_xlabel("Densité", fontsize=8)
+
+    # ---------------------------------------------------------
+    # 4. TITRE ET SAUVEGARDE
+    # ---------------------------------------------------------
     title = "Densité SAMI vs SSMI (saison de croissance)"
     if highlight_years:
         title += f" - contours bleus : {highlight_years}"
-    ax.set_title(title, fontsize=11)
-    fig.tight_layout()
-    _save(fig, cfg, "SAMI_SSMI_quadrants.png")
+
+    fig.suptitle(title, fontsize=11)
+    _save(
+        fig, cfg,
+        "SAMI_SSMI_quadrants.png",
+        dpi=200,
+        bbox_inches="tight"
+    )
 
 
 def plot_quadrant_events(sami, ssmi, events_df, cfg):
@@ -150,7 +278,7 @@ def plot_indices_comparison(sami, ssmi, ssi3, cfg):
 
     ax.plot(sami.loc[start:end], linewidth=0.8, label="SAMI – atmosphère")
     ax.plot(ssmi.loc[start:end], linewidth=0.8, label="SSMI – sol")
-    ax.plot(ssi3.loc[start:end], linewidth=0.9, label="SSI-3 – débit")
+    #ax.plot(ssi3.loc[start:end], linewidth=0.9, label="SSI-3 – débit")
 
     ax.axhline(0, color="black", linestyle="--", linewidth=0.8)
     ax.axhline(-1, color="orange", linestyle="--", linewidth=0.8, label="Modérée (−1)")
@@ -175,6 +303,95 @@ def plot_indices_comparison(sami, ssmi, ssi3, cfg):
     fig.tight_layout()
     _save(fig, cfg, "SAMI_SSMI_SSI3_comparison.png", bbox_inches="tight")
 
+
+def plot_indices_year_comparison(sami, ssmi, cfg):
+    """
+    Compare SAMI et SSMI entre deux années, en alignant les jours
+    de chaque année sur une même saison (ex. mai-octobre).
+    """
+
+    year1 = cfg.get("comparison_year1", 2024)
+    year2 = cfg.get("comparison_year2", 2025)
+    start_month = cfg.get("comparison_start_month", 5)
+    end_month = cfg.get("comparison_end_month", 10)
+
+    def extract_season(series, year):
+        data = series.loc[
+            (series.index.year == year)
+            & (series.index.month >= start_month)
+            & (series.index.month <= end_month)
+        ].copy()
+
+        # Aligner les deux années sur une année fictive commune.
+        # On utilise 2000 pour permettre le 29 février si nécessaire.
+        data.index = pd.to_datetime({
+            "year": 2000,
+            "month": data.index.month,
+            "day": data.index.day
+        })
+
+        return data
+
+    sami1 = extract_season(sami, year1)
+    sami2 = extract_season(sami, year2)
+    ssmi1 = extract_season(ssmi, year1)
+    ssmi2 = extract_season(ssmi, year2)
+
+    fig, axes = plt.subplots(2, 1, figsize=(14, 8), sharex=True)
+
+    # SAMI
+    axes[0].plot(
+        sami1.index, sami1.values,
+        label=f"SAMI {year1}",
+        color="gold",
+        linewidth=1.1
+    )
+    axes[0].plot(
+        sami2.index, sami2.values,
+        label=f"SAMI {year2}",
+        color="darkorange",
+        linewidth=1.1
+    )
+    axes[0].set_ylabel("SAMI (-)")
+    axes[0].set_title("Sécheresse atmosphérique")
+    axes[0].legend()
+
+    # SSMI
+    axes[1].plot(
+        ssmi1.index, ssmi1.values,
+        label=f"SSMI {year1}",
+        color="lightskyblue",
+        linewidth=1.1
+    )
+    axes[1].plot(
+        ssmi2.index, ssmi2.values,
+        label=f"SSMI {year2}",
+        color="blue",
+        linewidth=1.1
+        )
+    axes[1].set_ylabel("SSMI (-)")
+    axes[1].set_title("Sécheresse du sol")
+    axes[1].legend()
+    
+    for ax in axes:
+        ax.axhline(0, color="black", linestyle="--", linewidth=0.8)
+        ax.axhline(-1, color="orange", linestyle="--", linewidth=0.8)
+        ax.axhline(-1.5, color="red", linestyle=":", linewidth=0.8)
+        ax.axhline(-2, color="darkred", linestyle=":", linewidth=0.8)
+        ax.grid(axis="x", linestyle=":", alpha=0.4)
+
+    axes[1].xaxis.set_major_locator(mdates.MonthLocator())
+    axes[1].xaxis.set_major_formatter(mdates.DateFormatter("%d-%m"))
+    
+
+    fig.suptitle(
+        f"Comparaison SAMI et SSMI : {year1} vs {year2}",
+        fontsize=14,
+        fontweight="bold"
+    )
+
+    fig.tight_layout()
+    _save(fig, cfg, f"SAMI_SSMI_comparison_{year1}_{year2}.png")
 
 def plot_lagged_correlation(prop_df, lag_col, title, filename, cfg):
     """Correlation croisee en fonction du decalage (jours ou mois)."""
@@ -291,9 +508,9 @@ def plot_distributions_and_cdf(vpd, soil, cfg):
         h = ax.hist(z, bins=40, density=True, color="#a1d99b", edgecolor="white")
         l_pdf, = ax.plot(x_norm, norm.pdf(x_norm), color="black", linewidth=1.8)
         ax.set_xlim(-4, 4)
-        ax.set_xlabel(f"{idx_name} (écart-type)")
+        ax.set_xlabel(f"{idx_name}")
         ax.set_ylabel("Densité")
-        ax.set_title(f"{idx_name} - scores obtenus vs loi normale N(0,1)", fontsize=10)
+        ax.set_title(f"{idx_name} - scores obtenus et loi normale N(0,1)", fontsize=10)
 
         z_sorted = np.sort(z)
         ax_r = ax.twinx()
@@ -309,3 +526,71 @@ def plot_distributions_and_cdf(vpd, soil, cfg):
 
     fig.tight_layout()
     _save(fig, cfg, "distributions_CDF_normale.png")
+
+#######################################################""
+def plot_quadrant_heatmaps_july(sami, ssmi, cfg):
+    """
+    Heatmap de la proportion de jours "air sec / sol sec" dans une fenêtre
+    glissante de N jours (fenêtre se terminant à la date affichée).
+    Axe X : 1er juin -> 30 septembre. Axe Y : années 2000 à 2025.
+    """
+    start_year, end_year = 2000, 2025
+    window = cfg.get("quadrant_window_days", 14)
+    sami_thr = cfg.get("quadrant_sami_threshold", cfg.get("event_sami_threshold", -1))
+    ssmi_thr = cfg.get("quadrant_ssmi_threshold", cfg.get("event_ssmi_threshold", -1))
+
+    df = pd.concat([sami.rename("SAMI"), ssmi.rename("SSMI")], axis=1).sort_index()
+    df = df[~df.index.duplicated(keep="first")]
+
+    # CORRECTION : l'index couvre toute la saison jusqu'au 30 septembre 2025
+    # (et commence assez tôt pour que les fenêtres de juin soient complètes).
+    full_index = pd.date_range(f"{start_year}-05-01", f"{end_year}-09-30", freq="D")
+    df = df.reindex(full_index)
+
+    valid = df["SAMI"].notna() & df["SSMI"].notna()
+    dry_both = ((df["SAMI"] < sami_thr) & (df["SSMI"] < ssmi_thr)).astype(float)
+    dry_both = dry_both.where(valid)  # NaN si SAMI ou SSMI manquant
+
+    rolling = dry_both.rolling(window=window, min_periods=window).mean() * 100
+
+    # Axe X : 1er juin -> 30 septembre (année fictive non bissextile pour les labels)
+    ref_dates = pd.date_range("2025-06-01", "2025-09-30", freq="D")
+    years = np.arange(start_year, end_year + 1)
+
+    matrix = np.full((len(years), len(ref_dates)), np.nan)
+    for i, year in enumerate(years):
+        dates = pd.date_range(f"{year}-06-01", f"{year}-09-30", freq="D")
+        matrix[i, :] = rolling.reindex(dates).to_numpy()
+
+    cmap = plt.get_cmap("YlOrRd").copy()
+    cmap.set_bad("#d9d9d9")
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+    im = ax.imshow(
+        np.ma.masked_invalid(matrix),
+        origin="upper", aspect="auto", interpolation="nearest",
+        extent=(-0.5, len(ref_dates) - 0.5, end_year + 0.5, start_year - 0.5),
+        cmap=cmap, vmin=0, vmax=100,
+    )
+
+    ax.set_title("Air sec / sol sec")
+    ax.set_yticks(years)
+    ax.set_ylabel("Année")
+    ax.set_xlabel("Date (fin de la fenêtre)")
+    ticks = np.arange(0, len(ref_dates), 7)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([ref_dates[i].strftime("%d %b") for i in ticks],
+                       rotation=45, ha="right")
+
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    cbar.set_label("Jours air sec + sol sec (%)")
+    cbar.set_ticks([0, 25, 50, 75, 100])
+
+    fig.suptitle(
+        f"Sécheresse composée (SAMI < {sami_thr} et SSMI < {ssmi_thr}) - "
+        f"fenêtres glissantes de {window} jours ({start_year}-{end_year})",
+        fontsize=13,
+    )
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    _save(fig, cfg, f"quadrant_heatmap_dry_air_dry_soil_{start_year}_{end_year}.png",
+          bbox_inches="tight", dpi=200)
